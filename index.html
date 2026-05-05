@@ -168,6 +168,9 @@
     .row.page2-fullwidth { grid-template-columns: 1fr; }
     .row.page2-fullwidth .label { display: none; }
     .row.page2-fullwidth .cell { padding: 4px; }
+    #safetyMount { margin-top: 18px; }
+    #safetyMount .page-break-header { border-top: none; }
+    #safetyMount .row.page2-fullwidth { border-top: 2px solid #000; }
     .row.page2-fullwidth .safety-shell { gap: 8px; }
     .row.page2-fullwidth .safety-top { grid-template-columns: 1.1fr .9fr; gap: 8px; }
     .row.page2-fullwidth .safety-bottom-grid { grid-template-columns: 1.15fr .85fr; gap: 8px; }
@@ -369,6 +372,8 @@
             <div class="ai-suggest-note">Available only for Rework when no confirmed rework method exists for the selected defect, tool, and material combination.</div>
           </div>
         </div>
+
+        <div id="safetyMount"></div>
       </div>
     </div>
 
@@ -2156,21 +2161,16 @@
       page2Container.appendChild(formTitle2);
 
       const grid = document.getElementById('formGrid');
+      const safetyMount = document.getElementById('safetyMount');
       const page1LiveRows = [];
       const page1Rows = [];
       const page2Rows = [];
-      let hitPage2 = false;
       Array.from(grid.children).forEach(child => {
-        if (child.classList.contains('page-break-header')) {
-          hitPage2 = true;
-          return;
-        }
-        if (!hitPage2) {
-          page1LiveRows.push(child);
-          page1Rows.push(child.cloneNode(true));
-        } else {
-          page2Rows.push(child.cloneNode(true));
-        }
+        page1LiveRows.push(child);
+        page1Rows.push(child.cloneNode(true));
+      });
+      Array.from(safetyMount.children).forEach(child => {
+        page2Rows.push(child.cloneNode(true));
       });
 
       let splitIndex = Math.ceil(page1Rows.length / 2);
@@ -3387,7 +3387,9 @@ NSSU_DATA_END
         r.classList.toggle('row-alt', i % 2 === 1);
       });
 
-      grid.appendChild(sectionHeader('Page 2 — Safety Section'));
+      const safetyMount = document.getElementById('safetyMount');
+      safetyMount.innerHTML = '';
+      safetyMount.appendChild(sectionHeader('Page 2 — Safety Section'));
 
       const safetyShell = document.createElement('div');
       safetyShell.className = 'safety-shell';
@@ -3533,7 +3535,7 @@ NSSU_DATA_END
       bottomGrid.append(comments, misc);
       safetyShell.appendChild(bottomGrid);
 
-      grid.appendChild(row('Page 2 Safety Section', safetyShell, true));
+      safetyMount.appendChild(row('Page 2 Safety Section', safetyShell, true));
 
       renderPreviewOnly();
       canvases.sigChemContact = setupStoredSignatureCanvas('sigChemContact', 'chemContact');
