@@ -357,9 +357,10 @@
   .slot.green{border:5px solid var(--green)}
   .slot.yellow{border:5px solid var(--yellow)}
   .slot.blue{border:5px solid var(--blue)}
-  .slot.black{border:5px solid var(--black)}
+  .slot.black{border:none}
   .slot.gray{border:5px solid #64748b}
   .slot.reworkBlue{border:5px solid #3b82f6}
+  .slot.witnessMark{border:5px solid var(--blue)}
   .photo-space{
     position:relative;
     flex:1 1 auto;
@@ -405,6 +406,7 @@
   .caption.blue{background:#e9ecff}
   .caption.gray{background:#e5e7eb}
   .caption.reworkBlue{background:linear-gradient(#60a5fa,#3b82f6);box-shadow:inset 0 -8px #1d4ed8}
+  .caption.witnessMark{background:#000;color:#fff}
   .witness-content{
     display:flex;align-items:center;justify-content:center;
     height:100%;min-height:240px;text-align:center;font-weight:900;line-height:1.7;
@@ -830,15 +832,17 @@ const labels = {
   suspect:{type:'yellow', caption:'Suspect Area'},
   witness:{type:'black', caption:'', witness:true},
   reference:{type:'blue', caption:'Reference'},
+  witnessMark:{type:'witnessMark', caption:'Witness Mark'},
   tool:{type:'gray', caption:'Tool / Process'},
   rework:{type:'reworkBlue', caption:'Rework Step'},
   verify:{type:'green', caption:'Rework Verification'}
 };
 
-// Read NSSU builder handoff (if any) and apply autofill values.
-// Mutates `labels` so first-render captions reflect the NSSU step text,
-// and queues a top-section fill that runs once inputs exist in the DOM.
+// Read NSSU builder handoff (if any). Stores caption text in `handoffCaptions`
+// (applied only to inspection-category templates at slot-render time) and
+// queues a top-section fill that runs once inputs exist in the DOM.
 let pendingHandoffHeader = null;
+const handoffCaptions = { good: '', ng: '', rework: '' };
 (function readNssuHandoff(){
   try {
     const raw = localStorage.getItem('nssuPhotoHandoff');
@@ -847,9 +851,9 @@ let pendingHandoffHeader = null;
     const handoff = JSON.parse(raw);
     if (!handoff) return;
     if (handoff.captions) {
-      if (handoff.captions.good)   labels.good.caption   = handoff.captions.good;
-      if (handoff.captions.ng)     labels.ng.caption     = handoff.captions.ng;
-      if (handoff.captions.rework) labels.rework.caption = handoff.captions.rework;
+      if (handoff.captions.good)   handoffCaptions.good   = handoff.captions.good;
+      if (handoff.captions.ng)     handoffCaptions.ng     = handoff.captions.ng;
+      if (handoff.captions.rework) handoffCaptions.rework = handoff.captions.rework;
     }
     if (handoff.header) pendingHandoffHeader = handoff.header;
   } catch (err) {
@@ -862,8 +866,8 @@ const templates = [
   {category:'inspection', id:'t2_compare', name:'2 Photo Compare', desc:'No Good vs Good', cols:'1fr 1fr', rows:'1fr', slots:['ng','good']},
   {category:'inspection', id:'t4_grid', name:'4 Photo Grid', desc:'Two NG and two Good', cols:'1fr 1fr', rows:'1fr 1fr', slots:['ng','good','ng','good']},
   {category:'inspection', id:'t3_ng_good_suspect', name:'3 Photo Status', desc:'NG, Good, Suspect', cols:'1fr 1fr 1fr', rows:'1fr', slots:['ng','good','suspect']},
-  {category:'inspection', id:'t4_witness', name:'NG / Good / Suspect + Witness', desc:'Includes witness mark panel', cols:'1fr 1fr 1fr', rows:'1fr 1fr', slots:['ng','good','suspect','reference','witness'], style:'witness5'},
-  {category:'inspection', id:'t_suspect_witness', name:'Suspect + Witness', desc:'Large suspect view with reference and witness', cols:'1.7fr 1fr .8fr', rows:'1fr', slots:['suspect','reference','witness']},
+  {category:'inspection', id:'t4_witness', name:'NG / Good / Suspect + Witness', desc:'Includes witness mark panel', cols:'1fr 1fr 1fr', rows:'1fr 1fr', slots:['ng','good','suspect','witnessMark','witness'], style:'witness5'},
+  {category:'inspection', id:'t_suspect_witness', name:'Suspect + Witness', desc:'Large suspect view with witness mark and panel', cols:'1.7fr 1fr .8fr', rows:'1fr', slots:['suspect','witnessMark','witness']},
   {category:'inspection', id:'t_before_after', name:'Before / After', desc:'No Good before, Good after', cols:'1fr 1fr', rows:'1fr', slots:['ng','good']},
   {category:'inspection', id:'t_before_after_detail', name:'Before / After + Detail', desc:'Adds suspect detail', cols:'1fr 1fr 1fr', rows:'1fr', slots:['ng','good','suspect']},
   {category:'inspection', id:'t_reference_tool', name:'Reference + Tool Process', desc:'Reference and tool/process photos', cols:'1fr 1fr', rows:'1fr', slots:['reference','tool']},
@@ -873,7 +877,7 @@ const templates = [
   {category:'inspection', id:'t_single_ng', name:'Single No Good Highlight', desc:'One large no-good area', cols:'1fr', rows:'1fr', slots:['ng']},
   {category:'inspection', id:'t_single_good', name:'Single Good Reference', desc:'One large good reference', cols:'1fr', rows:'1fr', slots:['good']},
   {category:'inspection', id:'t_ref_good_ng', name:'Reference / Good / NG', desc:'Three-way comparison', cols:'1fr 1fr 1fr', rows:'1fr', slots:['reference','good','ng']},
-  {category:'inspection', id:'t_witness_only', name:'Witness Mark Reference', desc:'Photo plus witness panel', cols:'1.5fr .8fr', rows:'1fr', slots:['reference','witness']},
+  {category:'inspection', id:'t_witness_only', name:'Witness Mark Reference', desc:'Photo plus witness panel', cols:'1.5fr .8fr', rows:'1fr', slots:['witnessMark','witness']},
   {category:'inspection', id:'t_suspect_two_detail', name:'Suspect + Two Details', desc:'Large suspect with two detail views', cols:'1.4fr 1fr 1fr', rows:'1fr', slots:['suspect','reference','tool']},
   {category:'inspection', id:'t_9_grid', name:'9 Photo Grid', desc:'Full inspection evidence page', cols:'1fr 1fr 1fr', rows:'1fr 1fr 1fr', slots:['ng','good','suspect','reference','tool','ng','good','suspect','reference']},
   {category:'inspection', id:'t_12_grid', name:'12 Photo Grid', desc:'Maximum support page', cols:'1fr 1fr 1fr 1fr', rows:'1fr 1fr 1fr', slots:['ng','good','suspect','reference','tool','ng','good','suspect','reference','tool','ng','good']},
@@ -923,8 +927,8 @@ function makeThumb(t){
   }).join('');
   return `<div class="thumb" style="display:grid;grid-template-columns:${t.cols};grid-template-rows:${t.rows};gap:3px;">${slotHtml}</div>`;
 }
-function colorFor(type){return {red:'#ef1616',green:'#10b966',yellow:'#fff200',blue:'#10173a',black:'#111',gray:'#64748b',reworkBlue:'#3b82f6'}[type]||'#111'}
-function barFor(type){return {red:'#ff1c1c',green:'#10b966',yellow:'#fff200',blue:'#e9ecff',black:'#fff',gray:'#e5e7eb',reworkBlue:'#60a5fa'}[type]||'#fff'}
+function colorFor(type){return {red:'#ef1616',green:'#10b966',yellow:'#fff200',blue:'#10173a',black:'#111',gray:'#64748b',reworkBlue:'#3b82f6',witnessMark:'#10173a'}[type]||'#111'}
+function barFor(type){return {red:'#ff1c1c',green:'#10b966',yellow:'#fff200',blue:'#e9ecff',black:'#fff',gray:'#e5e7eb',reworkBlue:'#60a5fa',witnessMark:'#000'}[type]||'#fff'}
 
 function showHome(){
   document.getElementById('editorScreen').classList.remove('active');
@@ -934,7 +938,7 @@ function showHome(){
 function navigateToNssu(){
   document.body.classList.add('page-transitioning');
   window.setTimeout(()=>{
-    window.location.href = './index.html';
+    window.location.href = './nssu2.html';
   }, 140);
 }
 
@@ -947,20 +951,49 @@ function openTemplate(id){
   area.style.gridTemplateColumns=t.cols;
   area.style.gridTemplateRows=t.rows;
   area.innerHTML='';
-  t.slots.forEach((s,i)=>area.appendChild(makeSlot(s,i+1)));
+  // Resolve which caption to display for each slot in this template.
+  // Inspection templates pull from the NSSU handoff (if present);
+  // rework templates always use the short hardcoded labels.
+  const captionFor = (slotKind) => {
+    if (t.category === 'inspection') {
+      if (slotKind === 'good' && handoffCaptions.good) return handoffCaptions.good;
+      if (slotKind === 'ng'   && handoffCaptions.ng)   return handoffCaptions.ng;
+    }
+    return labels[slotKind].caption;
+  };
+  t.slots.forEach((s,i)=>area.appendChild(makeSlot(s, i+1, captionFor(s))));
   syncHeader();
 }
 
-function makeSlot(kind,index){
+// Renders a caption string. If it contains a comma, splits at the first comma
+// into two centered lines (the comma stays on the first line). Otherwise
+// returns the original text. The inspection examples in the NSSU library use
+// the form "If <condition>, Part = <Good|No Good>" which renders nicely as
+// two lines.
+function renderCaptionText(text){
+  const escape = (s) => s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  if (!text) return '';
+  const idx = text.indexOf(',');
+  if (idx === -1) return escape(text);
+  const first  = escape(text.slice(0, idx + 1));
+  const second = escape(text.slice(idx + 1).trim());
+  return second ? `${first}<br>${second}` : first;
+}
+
+function makeSlot(kind,index,captionOverride){
   const L=labels[kind];
   const slot=document.createElement('div');
   slot.className=`slot ${L.type}`;
   slot.onclick=(e)=>{ if(e.target.tagName!=='BUTTON' && e.target.tagName!=='INPUT') selectSlot(slot); };
   if(L.witness){
-    slot.innerHTML = `<div class="witness-content">:<br><br>Blue = Blue<br>Gold = Yellow</div>`;
+    slot.innerHTML = `<div class="witness-content" contenteditable="true">Witness Mark Location:<br><br>1st. = Blue<br>2nd. = Yellow</div>`;
     return slot;
   }
   const inputId = `photo_${Date.now()}_${index}`;
+  const captionText = captionOverride !== undefined ? captionOverride : L.caption;
   slot.innerHTML=`
     <div class="photo-space">
       <img class="user-photo" style="display:none" />
@@ -972,7 +1005,7 @@ function makeSlot(kind,index){
         <input class="file-input" id="${inputId}" type="file" accept="image/*" capture="environment" onchange="loadPhoto(event,this)">
       </div>
     </div>
-    <div contenteditable="true" class="caption ${L.type}">${L.caption}</div>`;
+    <div contenteditable="true" class="caption ${L.type}">${renderCaptionText(captionText)}</div>`;
   addSlotHandles(slot);
   makeSlotExcelResize(slot);
   return slot;
@@ -1614,10 +1647,11 @@ function getDraftData(){
   document.querySelectorAll('.slot').forEach((slot,index)=>{
     const img=slot.querySelector('img.user-photo');
     const caption=slot.querySelector('.caption');
+    const witnessContent=slot.querySelector('.witness-content');
     photos.push({
       index:index+1,
       className:slot.className,
-      caption:caption ? caption.textContent.trim() : '',
+      caption:caption ? caption.textContent.trim() : (witnessContent ? witnessContent.innerHTML : ''),
       imageData:img && img.src && img.style.display !== 'none' ? img.src : '',
       width:slot.style.width || '',
       height:slot.style.height || '',
