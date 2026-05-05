@@ -4287,7 +4287,9 @@ NSSU_DATA_END
       // Snapshot relevant NSSU fields so the photo creator can autofill
       // its top-section inputs and slot captions on load.
       try {
-        const stripStepPrefix = (s) => (s || '').replace(/^\s*\d+\s*[.)]\s*/, '').trim();
+        // Strips leading step numbering like "3.)", "(3)", "4 -", etc.
+        // so the autofilled caption starts with the actual sentence text.
+        const stripStepPrefix = (s) => (s || '').replace(/^[\s\d.()\-]+/, '').trim();
         const firstSentence = (s) => {
           const cleaned = stripStepPrefix(s);
           if (!cleaned) return '';
@@ -4320,6 +4322,28 @@ NSSU_DATA_END
         localStorage.setItem('nssuPhotoHandoff', JSON.stringify(handoff));
       } catch (err) {
         // Non-fatal; photo creator just won't autofill.
+      }
+      // Auto-save the current NSSU as a draft (or preserve initiated status)
+      // so all field data is restored when the user returns from the photo
+      // creator. Skip if the form is essentially empty.
+      try {
+        const hasContent =
+          (state.trackingNumber || '').trim() ||
+          (state.partName || '').trim() ||
+          (state.partNumber || '').trim() ||
+          ((state.kanbanEntries || []).some(k => (k.partNumber || '').trim() || (k.kanban || '').trim())) ||
+          (state.defectOther || state.commonDefect || '').trim() ||
+          state.currentRecordId;
+        if (hasContent) {
+          const status = state.currentRecordStatus === 'initiated' ? 'initiated' : 'draft';
+          const record = saveRecord(status, true);
+          if (record && record.id) {
+            localStorage.setItem('nssuReturnRecordId', record.id);
+          }
+        }
+      } catch (err) {
+        // Non-fatal; user will land on a blank form on return instead of
+        // losing data silently.
       }
       navigateWithTransition('./nssu_photo_creator_with_rework_templates.html');
     };
@@ -5828,6 +5852,24 @@ NSSU_DATA_END
 
     renderRevisionList();
     render();
+
+    // If the user came back from the photo creator, restore the NSSU they
+    // were working on. The handoff record id was stashed before navigation;
+    // it's a one-shot key cleared after restore so a normal page load shows
+    // a blank form.
+    try {
+      const returnId = localStorage.getItem('nssuReturnRecordId');
+      if (returnId) {
+        localStorage.removeItem('nssuReturnRecordId');
+        const records = getStoredRecords();
+        const record = records.find(r => r.id === returnId);
+        if (record) {
+          applyRecord(record);
+        }
+      }
+    } catch (err) {
+      // Non-fatal; user lands on a blank form.
+    }
   </script>
 </body>
 </html>
