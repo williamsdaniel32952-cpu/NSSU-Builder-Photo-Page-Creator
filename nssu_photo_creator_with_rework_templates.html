@@ -294,6 +294,10 @@
     display:grid;
     gap:8px;
     min-height:600px;
+    /* Cells stretch to fill their grid cell by default (CSS Grid default).
+       The resize handler sets `align-self: start` on individually-resized
+       slots so they don't drag their row's siblings when their explicit
+       height grows past the row track. */
   }
   .side-panel{
     background:#fff;
@@ -361,6 +365,154 @@
   .slot.gray{border:5px solid #64748b}
   .slot.reworkBlue{border:5px solid #3b82f6}
   .slot.witnessMark{border:5px solid var(--blue)}
+
+  /* Drag handle for repositioning slots within the template grid.
+     Shows in the top-left corner; pointer-down on this handle (and only
+     this handle) starts a slot reorder drag. */
+  .slot-drag-handle{
+    position:absolute;
+    top:6px;
+    left:6px;
+    width:30px;
+    height:24px;
+    background:rgba(255,255,255,.92);
+    border:1.5px solid #475569;
+    border-radius:5px;
+    z-index:25;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:3px;
+    cursor:grab;
+    box-shadow:0 1px 3px rgba(0,0,0,.18);
+    touch-action:none;
+    user-select:none;
+  }
+  .slot-drag-handle:hover{background:#f1f5f9}
+  .slot-drag-handle::before,
+  .slot-drag-handle::after,
+  .slot-drag-handle > span{
+    content:'';
+    display:block;
+    width:16px;
+    height:2px;
+    background:#475569;
+    border-radius:1px;
+  }
+  .slot.slot-dragging{opacity:.45; cursor:grabbing}
+  .slot.slot-dragging .slot-drag-handle{cursor:grabbing}
+  .slot.slot-drop-before{
+    box-shadow: -6px 0 0 0 #2563eb, 0 -6px 0 0 #2563eb;
+  }
+  .slot.slot-drop-after{
+    box-shadow: 6px 0 0 0 #2563eb, 0 6px 0 0 #2563eb;
+  }
+  /* When the user is dragging a slot over the empty area of the grid
+     (anywhere not on top of another slot), the grid container itself
+     gets a soft blue dashed outline so the user can see the empty
+     drop area. */
+  .template-area.grid-drop-empty{
+    outline:3px dashed #2563eb;
+    outline-offset:-2px;
+    background: rgba(37, 99, 235, 0.04);
+  }
+
+  /* WIS Photos section: standalone photo uploads attached to the photo
+     page output but not part of the visual template grid. Each button is
+     a small file-input trigger; once a photo is loaded a thumbnail badge
+     and a remove button appear. Buttons for types already covered by
+     the current template are hidden. */
+  .wis-section{
+    margin-top:18px;
+    padding:14px;
+    background:#f8fafc;
+    border:1.5px solid var(--line);
+    border-radius:12px;
+  }
+  .wis-section h3{
+    margin:0 0 10px;
+    font-size:14px;
+    font-weight:800;
+    color:#0f172a;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+  }
+  .wis-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
+    gap:8px;
+  }
+  .wis-btn{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    padding:10px 6px;
+    background:#fff;
+    border:1.5px solid #cbd5e1;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:12px;
+    font-weight:700;
+    color:#0f172a;
+    text-align:center;
+    line-height:1.2;
+    position:relative;
+    min-height:96px;
+    transition:border-color .15s, background .15s;
+  }
+  .wis-btn:hover{border-color:#2563eb; background:#f1f5f9}
+  .wis-btn.has-photo{border-color:#10b966; background:#f0fdf4}
+  .wis-btn.has-photo::after{
+    content:'\2713';
+    position:absolute;
+    top:4px;
+    right:6px;
+    color:#10b966;
+    font-weight:900;
+    font-size:14px;
+  }
+  .wis-btn .wis-icon{
+    width:48px; height:48px;
+    border:1.5px solid #94a3b8;
+    border-radius:8px;
+    background:#f1f5f9 center/cover no-repeat;
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#475569;
+  }
+  .wis-btn:hover .wis-icon{ color:#2563eb; border-color:#2563eb; }
+  .wis-btn.has-photo .wis-icon{
+    border-color:#10b966;
+    color:transparent;
+  }
+  .wis-btn .wis-cam{
+    display:block;
+  }
+  .wis-btn.has-photo .wis-icon{
+    border-color:#10b966;
+  }
+  .wis-btn .wis-clear{
+    position:absolute;
+    top:2px;
+    left:4px;
+    width:16px;
+    height:16px;
+    border:none;
+    background:#ef4444;
+    color:#fff;
+    border-radius:50%;
+    font-size:10px;
+    line-height:1;
+    cursor:pointer;
+    display:none;
+    padding:0;
+  }
+  .wis-btn.has-photo .wis-clear{display:block}
+  .wis-btn input[type=file]{display:none}
   .photo-space{
     position:relative;
     flex:1 1 auto;
@@ -681,14 +833,43 @@
     .canvas-shell{padding:8px}
   }
   @media print{
-    body{background:#fff}
-    header,.toolbar,.side-panel,.hero{display:none!important}
-    main{padding:0;max-width:none}
-    .canvas-shell{box-shadow:none;border:0;padding:0}
-    .page{box-shadow:none;border:0;width:100%;min-height:auto}
+    @page{
+      size: letter landscape;
+      margin: 0.3in;
+    }
+    html, body{
+      background:#fff !important;
+      width: 100%;
+      height: 100%;
+      margin: 0 !important;
+      padding: 0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    header,.toolbar,.side-panel,.hero,.template-controls,.template-toolbar{display:none!important}
+    main{padding:0 !important;max-width:none !important;margin:0 !important;display:block !important}
+    .canvas-shell{box-shadow:none;border:0;padding:0;overflow:visible !important;background:transparent !important}
     .upload-controls{display:none!important}
+    .slot-handle, .slot-drag-handle{display:none !important}
+    .slot{break-inside: avoid; page-break-inside: avoid}
+    /* Scale the 1000px-wide page to fit the printable letter-landscape area.
+       Using a wrapper transform avoids breaking the layout while it's on
+       screen. The page renders at its natural size, then is scaled down to
+       100% of the printable width. */
+    .page{
+      width: 1000px !important;
+      min-height: 0 !important;
+      box-shadow:none !important;
+      border:0 !important;
+      padding: 8px !important;
+      margin: 0 !important;
+      transform-origin: top left;
+      transform: scale(calc((11in - 0.6in) / 1000px));
+    }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 <body>
 <header>
@@ -747,7 +928,8 @@
     <div class="toolbar">
       <button class="secondary" onclick="showHome()">← Back to Templates</button>
       <button onclick="clearAllPhotos()">Clear Photos</button>
-      <button class="light" onclick="window.print()">Print / Save PDF</button>
+      <button class="light" onclick="exportAllJpegs()">Export JPEGs</button>
+      <button class="light" onclick="window.print()" title="Browser print">Print</button>
       <div class="field"><label>Current Template</label><input id="currentTemplateName" readonly></div>
     </div>
 
@@ -765,6 +947,10 @@
             <div><span>Date:</span><input data-template-field="sortDate" placeholder="Date" oninput="syncTemplateHeaderToTop(this)"></div>
           </div>
           <div id="templateArea" class="template-area"></div>
+        </div>
+        <div id="wisSection" class="wis-section" style="display:none">
+          <h3>WIS Photos</h3>
+          <div id="wisGrid" class="wis-grid"></div>
         </div>
       </div>
 
@@ -949,7 +1135,17 @@ function openTemplate(id){
   document.getElementById('currentTemplateName').value = t.name;
   const area = document.getElementById('templateArea');
   area.style.gridTemplateColumns=t.cols;
-  area.style.gridTemplateRows=t.rows;
+  // Replace explicit '1fr'-style row tracks with `minmax(220px, 1fr)`.
+  // The 1fr distributes available canvas height across rows so the
+  // initial layout fills the canvas. The 220px floor keeps rows from
+  // collapsing when content is tiny. When the user resizes one slot
+  // larger via the resize handle, that slot gets `align-self: start`
+  // (set by the resize handler) so its growth doesn't drag siblings
+  // in the same row, while the row track itself can grow to fit.
+  const rowParts = String(t.rows || '').trim().split(/\s+/).filter(Boolean);
+  area.style.gridTemplateRows = rowParts.length
+    ? rowParts.map(() => 'minmax(220px, 1fr)').join(' ')
+    : t.rows;
   area.innerHTML='';
   // Resolve which caption to display for each slot in this template.
   // Inspection templates pull from the NSSU handoff (if present);
@@ -962,7 +1158,263 @@ function openTemplate(id){
     return labels[slotKind].caption;
   };
   t.slots.forEach((s,i)=>area.appendChild(makeSlot(s, i+1, captionFor(s))));
+  renderWisSection(t);
   syncHeader();
+}
+
+// ============================================================
+// WIS Photos: standalone photo uploads attached to the photo page
+// output. Buttons whose role is already in the current template's
+// slots are hidden. Stored as data URLs in `wisPhotos` keyed by
+// type id; survives template changes within the same session.
+// ============================================================
+const WIS_TYPES = [
+  { id:'workArea',        label:'Work Area',         excludeOn:[] },
+  { id:'wholePart',       label:'Whole Part',        excludeOn:[] },
+  { id:'good',            label:'Good Photo',        excludeOn:['good'] },
+  { id:'ng',              label:'NG Photo',          excludeOn:['ng'] },
+  { id:'witnessMark',     label:'Witness Mark Photo',excludeOn:['witnessMark'] },
+  { id:'suspect',         label:'Suspect Area',      excludeOn:['suspect'] },
+  { id:'kanban',          label:'Kanban',            excludeOn:[] },
+  { id:'rejectionStep',   label:'Rejection Step',    excludeOn:[] },
+  { id:'unpacking',       label:'Unpacking',         excludeOn:[] },
+  { id:'repacking',       label:'Repacking',         excludeOn:[] },
+  { id:'reworkStep',      label:'Rework Step',       excludeOn:['rework'] },
+  { id:'reworkTools',     label:'Rework Tools',      excludeOn:[] }
+];
+
+// In-memory store of uploaded WIS photos { typeId: dataUrl }
+const wisPhotos = {};
+
+function renderWisSection(template){
+  const section = document.getElementById('wisSection');
+  const grid = document.getElementById('wisGrid');
+  if (!section || !grid) return;
+  const usedSlotKinds = new Set(template.slots || []);
+  const visible = WIS_TYPES.filter(w => !w.excludeOn.some(k => usedSlotKinds.has(k)));
+  if (!visible.length) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  grid.innerHTML = '';
+  visible.forEach(w => {
+    const inputId = `wis_input_${w.id}`;
+    const btn = document.createElement('label');
+    btn.className = 'wis-btn' + (wisPhotos[w.id] ? ' has-photo' : '');
+    btn.dataset.wisType = w.id;
+    btn.htmlFor = inputId;
+    btn.title = `Take ${w.label} photo with camera`;
+    const cameraSvg = `<svg class="wis-cam" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>`;
+    btn.innerHTML = `
+      <button type="button" class="wis-clear" title="Remove" onclick="clearWisPhoto('${w.id}', event)">\u2715</button>
+      <div class="wis-icon"${wisPhotos[w.id] ? ` style="background-image:url('${wisPhotos[w.id]}'); border-color:#10b966;"` : ''}>${wisPhotos[w.id] ? '' : cameraSvg}</div>
+      <span>${w.label}</span>
+      <input type="file" id="${inputId}" accept="image/*" capture="environment" onchange="loadWisPhoto('${w.id}', this)">
+    `;
+    grid.appendChild(btn);
+  });
+}
+
+function loadWisPhoto(typeId, input){
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    wisPhotos[typeId] = reader.result;
+    // Re-render only this button so we don't blow away the others
+    const btn = document.querySelector(`.wis-btn[data-wis-type="${typeId}"]`);
+    if (btn) {
+      btn.classList.add('has-photo');
+      const icon = btn.querySelector('.wis-icon');
+      if (icon) {
+        icon.style.backgroundImage = `url('${reader.result}')`;
+        icon.style.borderColor = '#10b966';
+      }
+    }
+    input.value = ''; // allow re-upload of same filename
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearWisPhoto(typeId, event){
+  event.preventDefault();
+  event.stopPropagation();
+  delete wisPhotos[typeId];
+  const btn = document.querySelector(`.wis-btn[data-wis-type="${typeId}"]`);
+  if (btn) {
+    btn.classList.remove('has-photo');
+    const icon = btn.querySelector('.wis-icon');
+    if (icon) {
+      icon.style.backgroundImage = '';
+      icon.style.borderColor = '';
+    }
+  }
+}
+
+// ============================================================
+// JPEG export. Outputs:
+//   1. The photo page rendered as a single landscape JPEG, named
+//      "Additional Photo Page - <kanban> - <sortLocation>.jpeg"
+//   2. Each filled template slot photo as its own JPEG, named by
+//      slot type, e.g. "Good - <kanban> - <sortLocation>.jpeg"
+//   3. Each WIS photo as its own JPEG, named by WIS type label.
+// All exports are individual file downloads (no zip). On Android
+// APK packaging, the same download links can be intercepted and
+// attached to an Outlook compose intent.
+// ============================================================
+const PHOTO_PAGE_LONG_EDGE = 1600; // px on the long edge - landscape
+const INDIVIDUAL_LONG_EDGE = 1280; // px on the long edge for single photos
+const JPEG_QUALITY        = 0.82;
+
+function getHeaderForFilename(){
+  const get = id => (document.getElementById(id)?.value || '').trim();
+  // Header inputs duplicate between top section and template editable
+  // header; either is fine. Sanitize for use in filenames.
+  const sanitize = s => s.replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ').trim();
+  return {
+    kanban: sanitize(get('kanban')) || 'NoKanban',
+    sortLocation: sanitize(get('sortLocation')) || 'NoLocation'
+  };
+}
+
+function buildFilename(typeLabel){
+  const { kanban, sortLocation } = getHeaderForFilename();
+  return `${typeLabel} - ${kanban} - ${sortLocation}.jpeg`;
+}
+
+// Re-encode a data URL or img source to a JPEG of bounded size.
+function dataUrlToJpegBlob(srcDataUrl, longEdge, quality){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth, h = img.naturalHeight;
+      if (!w || !h) { reject(new Error('Image has no dimensions')); return; }
+      const scale = Math.min(1, longEdge / Math.max(w, h));
+      const cw = Math.round(w * scale);
+      const ch = Math.round(h * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      // White background (JPEG has no alpha)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.drawImage(img, 0, 0, cw, ch);
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob returned null')), 'image/jpeg', quality);
+    };
+    img.onerror = () => reject(new Error('Image failed to load'));
+    img.src = srcDataUrl;
+  });
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+
+// Maps internal slot kinds to friendly filename labels.
+function labelForSlotKind(kind){
+  return ({
+    good:'Good',
+    ng:'No Good',
+    suspect:'Suspect Area',
+    reference:'Reference',
+    witnessMark:'Witness Mark',
+    tool:'Tool',
+    rework:'Rework Step',
+    verify:'Rework Verification'
+  })[kind] || kind;
+}
+
+// Map slot CSS type back to a "kind" name for the filename / labels.
+// Each slot is tagged with `data-slot-kind` at creation time, so we can
+// just read that. Falls back to no export if the kind is unset.
+function exportSlotPhotos(){
+  const promises = [];
+  document.querySelectorAll('.slot').forEach(slot => {
+    const img = slot.querySelector('img.user-photo');
+    if (!img || !img.src || img.style.display === 'none') return;
+    const kind = slot.dataset.slotKind;
+    if (!kind) return;
+    const label = labelForSlotKind(kind);
+    promises.push(
+      dataUrlToJpegBlob(img.src, INDIVIDUAL_LONG_EDGE, JPEG_QUALITY)
+        .then(blob => downloadBlob(blob, buildFilename(label)))
+        .catch(err => console.warn('Slot photo export failed:', kind, err))
+    );
+  });
+  return Promise.all(promises);
+}
+
+function exportWisPhotos(){
+  const promises = [];
+  Object.entries(wisPhotos).forEach(([typeId, dataUrl]) => {
+    const meta = WIS_TYPES.find(w => w.id === typeId);
+    if (!meta) return;
+    promises.push(
+      dataUrlToJpegBlob(dataUrl, INDIVIDUAL_LONG_EDGE, JPEG_QUALITY)
+        .then(blob => downloadBlob(blob, buildFilename(meta.label)))
+        .catch(err => console.warn('WIS photo export failed:', typeId, err))
+    );
+  });
+  return Promise.all(promises);
+}
+
+async function exportPhotoPageJpeg(){
+  if (typeof html2canvas !== 'function') {
+    throw new Error('html2canvas not loaded');
+  }
+  const page = document.getElementById('page');
+  if (!page) return;
+  // Render at higher pixel density for clarity, then downscale on output.
+  const canvas = await html2canvas(page, {
+    backgroundColor: '#ffffff',
+    scale: 2,
+    useCORS: true,
+    logging: false
+  });
+  // Downscale rendered canvas to landscape long-edge target
+  const target = PHOTO_PAGE_LONG_EDGE;
+  const w = canvas.width, h = canvas.height;
+  const scale = Math.min(1, target / Math.max(w, h));
+  const out = document.createElement('canvas');
+  out.width = Math.round(w * scale);
+  out.height = Math.round(h * scale);
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.drawImage(canvas, 0, 0, out.width, out.height);
+  await new Promise(resolve => {
+    out.toBlob(blob => {
+      if (blob) downloadBlob(blob, buildFilename('Additional Photo Page'));
+      resolve();
+    }, 'image/jpeg', JPEG_QUALITY);
+  });
+}
+
+async function exportAllJpegs(){
+  // Briefly disable the export button to prevent double-click
+  const btn = document.querySelector('.toolbar button[onclick="exportAllJpegs()"]');
+  const originalLabel = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = 'Exporting...'; }
+  try {
+    // Export the photo page first, then the individual files. Sequencing
+    // gives the browser time to surface the "allow multiple downloads?"
+    // prompt before kicking off the avalanche.
+    await exportPhotoPageJpeg();
+    await exportSlotPhotos();
+    await exportWisPhotos();
+  } catch (err) {
+    alert('Export failed: ' + (err && err.message ? err.message : err));
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = originalLabel; }
+  }
 }
 
 // Renders a caption string. If it contains a comma, splits at the first comma
@@ -987,14 +1439,17 @@ function makeSlot(kind,index,captionOverride){
   const L=labels[kind];
   const slot=document.createElement('div');
   slot.className=`slot ${L.type}`;
+  slot.dataset.slotKind = kind;
   slot.onclick=(e)=>{ if(e.target.tagName!=='BUTTON' && e.target.tagName!=='INPUT') selectSlot(slot); };
   if(L.witness){
-    slot.innerHTML = `<div class="witness-content" contenteditable="true">Witness Mark Location:<br><br>1st. = Blue<br>2nd. = Yellow</div>`;
+    slot.innerHTML = `<div class="slot-drag-handle" title="Drag to reorder"><span></span></div><div class="witness-content" contenteditable="true">Witness Mark Location:<br><br>1st. = Blue<br>2nd. = Yellow</div>`;
+    enableSlotReorderDrag(slot);
     return slot;
   }
   const inputId = `photo_${Date.now()}_${index}`;
   const captionText = captionOverride !== undefined ? captionOverride : L.caption;
   slot.innerHTML=`
+    <div class="slot-drag-handle" title="Drag to reorder"><span></span></div>
     <div class="photo-space">
       <img class="user-photo" style="display:none" />
       <div class="annotation-layer"></div>
@@ -1008,7 +1463,131 @@ function makeSlot(kind,index,captionOverride){
     <div contenteditable="true" class="caption ${L.type}">${renderCaptionText(captionText)}</div>`;
   addSlotHandles(slot);
   makeSlotExcelResize(slot);
+  enableSlotReorderDrag(slot);
   return slot;
+}
+
+// Enables insert-on-drag reordering for a slot. The drag handle (top-left
+// of the slot) is the only place that initiates the drag; other interactions
+// (resize, captions, buttons) are unaffected. On drop the dragged slot is
+// inserted before the target slot in DOM order, and CSS Grid auto-flow
+// re-positions everything into cells in the new order.
+function enableSlotReorderDrag(slot){
+  const handle = slot.querySelector('.slot-drag-handle');
+  if (!handle) return;
+
+  let dragging = false;
+  let startX = 0, startY = 0;
+  let armed = false;
+  let pointerId = null;
+
+  function clearDropMarkers(){
+    document.querySelectorAll('.slot-drop-before,.slot-drop-after').forEach(s => {
+      s.classList.remove('slot-drop-before');
+      s.classList.remove('slot-drop-after');
+    });
+    document.querySelectorAll('.grid-drop-empty').forEach(g => {
+      g.classList.remove('grid-drop-empty');
+    });
+  }
+
+  function findDropTarget(clientX, clientY){
+    const parent = slot.parentElement;
+    const parentRect = parent.getBoundingClientRect();
+    const insideGrid = clientX >= parentRect.left && clientX <= parentRect.right
+                    && clientY >= parentRect.top  && clientY <= parentRect.bottom;
+    const all = Array.from(parent.querySelectorAll('.slot'));
+
+    // First, check whether the pointer is over any slot's bounding rect.
+    // If yes, that's the drop target with before/after based on the
+    // pointer position within it.
+    for (let i = 0; i < all.length; i++) {
+      const other = all[i];
+      if (other === slot) continue;
+      const r = other.getBoundingClientRect();
+      if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
+        const horizontal = r.width >= r.height;
+        const position = horizontal
+          ? (clientX < r.left + r.width / 2 ? 'before' : 'after')
+          : (clientY < r.top  + r.height / 2 ? 'before' : 'after');
+        return { el: other, position };
+      }
+    }
+
+    // Pointer is NOT over a slot. If it's still inside the grid container,
+    // treat that as "drop into the empty area" - append to the end so CSS
+    // Grid auto-flow places the slot in the next available empty cell.
+    if (insideGrid) {
+      return { el: null, position: 'end' };
+    }
+
+    // Pointer is outside the grid entirely - no drop.
+    return null;
+  }
+
+  handle.addEventListener('pointerdown', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    armed = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    pointerId = e.pointerId;
+    try { handle.setPointerCapture(pointerId); } catch (err) {}
+  });
+
+  handle.addEventListener('pointermove', e => {
+    if (!armed) return;
+    if (!dragging) {
+      const dx = Math.abs(e.clientX - startX);
+      const dy = Math.abs(e.clientY - startY);
+      // Threshold to distinguish click vs drag
+      if (dx < 4 && dy < 4) return;
+      dragging = true;
+      slot.classList.add('slot-dragging');
+    }
+    clearDropMarkers();
+    const target = findDropTarget(e.clientX, e.clientY);
+    if (target) {
+      if (target.position === 'end') {
+        slot.parentElement.classList.add('grid-drop-empty');
+      } else if (target.el) {
+        target.el.classList.add(target.position === 'before' ? 'slot-drop-before' : 'slot-drop-after');
+      }
+    }
+  });
+
+  function endDrag(e){
+    if (!armed) return;
+    armed = false;
+    try { handle.releasePointerCapture(pointerId); } catch (err) {}
+    if (!dragging) return;
+    dragging = false;
+    slot.classList.remove('slot-dragging');
+    const target = findDropTarget(e.clientX, e.clientY);
+    clearDropMarkers();
+    if (!target) return;
+    const parent = slot.parentElement;
+    if (target.position === 'end') {
+      // Move slot to the end so CSS Grid auto-flow places it in the next
+      // empty cell (or wraps it onto a new row if the grid is full).
+      parent.appendChild(slot);
+    } else if (target.el && target.el !== slot) {
+      if (target.position === 'before') {
+        parent.insertBefore(slot, target.el);
+      } else {
+        parent.insertBefore(slot, target.el.nextSibling);
+      }
+    }
+  }
+
+  handle.addEventListener('pointerup', endDrag);
+  handle.addEventListener('pointercancel', e => {
+    armed = false;
+    dragging = false;
+    slot.classList.remove('slot-dragging');
+    clearDropMarkers();
+    try { handle.releasePointerCapture(pointerId); } catch (err) {}
+  });
 }
 
 function selectSlot(slot){

@@ -28,7 +28,7 @@
     body.page-transitioning { opacity: 0; }
     .masthead { border-bottom: 4px solid var(--blue); background: #fff; }
     .masthead-top { display: flex; justify-content: space-between; align-items: end; padding: 16px 20px; gap: 20px; flex-wrap: wrap; }
-    .masthead-left-actions { display:flex; align-items:center; gap:10px; }
+    .masthead-left-actions { display:flex; align-items:center; gap:10px; flex: 0 0 auto; min-width: 140px; }
     .nssu { text-align: right; color: var(--blue); }
     .nssu .big { font-size: 46px; font-weight: 800; text-transform: lowercase; line-height: 1; }
     .nssu .small { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; font-weight: 700; color: #2f65b0; }
@@ -195,6 +195,39 @@
 
     @media (max-width: 1100px) {
       .layout { grid-template-columns: 1fr; }
+    }
+
+    /* Tablet / narrow viewport: checkboxes inside narrow cells (Part ID,
+       Certification Methods, Document Types, etc.) word-wrap one letter at
+       a time because the boxmark + label sit side by side in a tiny cell.
+       Below 900px, stack the boxmark on top and let the label use the full
+       cell width with normal word wrapping. */
+    @media (max-width: 900px) {
+      .checkbox {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 4px;
+        padding: 6px 4px;
+        min-height: 56px;
+        line-height: 1.2;
+      }
+      .checkbox .boxmark {
+        flex-shrink: 0;
+      }
+      .checkbox span:last-child {
+        overflow-wrap: normal;
+        word-break: normal;
+        hyphens: none;
+        display: block;
+        width: 100%;
+      }
+      /* Frequency and document-type checkboxes are typically single-word so
+         they look fine vertical too, but keep them slightly more compact. */
+      .freq-checks .checkbox,
+      .tools-needed-grid .checkbox {
+        min-height: 50px;
+      }
     }
     .lib-status { font-size:11px; padding:4px 8px; border-radius:3px; margin-top:6px; display:none; }
     .lib-status.success { background:#e8f5e9; color:#1a7a3a; border:1px solid #a5d6a7; display:block; }
