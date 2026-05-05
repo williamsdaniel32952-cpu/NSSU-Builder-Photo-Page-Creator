@@ -835,6 +835,28 @@ const labels = {
   verify:{type:'green', caption:'Rework Verification'}
 };
 
+// Read NSSU builder handoff (if any) and apply autofill values.
+// Mutates `labels` so first-render captions reflect the NSSU step text,
+// and queues a top-section fill that runs once inputs exist in the DOM.
+let pendingHandoffHeader = null;
+(function readNssuHandoff(){
+  try {
+    const raw = localStorage.getItem('nssuPhotoHandoff');
+    if (!raw) return;
+    localStorage.removeItem('nssuPhotoHandoff');
+    const handoff = JSON.parse(raw);
+    if (!handoff) return;
+    if (handoff.captions) {
+      if (handoff.captions.good)   labels.good.caption   = handoff.captions.good;
+      if (handoff.captions.ng)     labels.ng.caption     = handoff.captions.ng;
+      if (handoff.captions.rework) labels.rework.caption = handoff.captions.rework;
+    }
+    if (handoff.header) pendingHandoffHeader = handoff.header;
+  } catch (err) {
+    // Non-fatal; ignore malformed handoff data.
+  }
+})();
+
 const templates = [
   // INSPECTION TEMPLATES
   {category:'inspection', id:'t2_compare', name:'2 Photo Compare', desc:'No Good vs Good', cols:'1fr 1fr', rows:'1fr', slots:['ng','good']},
@@ -1634,6 +1656,19 @@ function saveDraft(){
 }
 
 buildHome();
+
+// Apply NSSU handoff top-section values (if any) before the first syncHeader.
+if (pendingHandoffHeader) {
+  setVal('trackingNumber', pendingHandoffHeader.trackingNumber);
+  setVal('kanban',         pendingHandoffHeader.kanban);
+  setVal('defect',         pendingHandoffHeader.defect);
+  setVal('partName',       pendingHandoffHeader.partName);
+  setVal('sortLocation',   pendingHandoffHeader.sortLocation);
+  setVal('supplier',       pendingHandoffHeader.supplier);
+  ensureHiddenHeader('partNumber', pendingHandoffHeader.partNumber);
+  ensureHiddenHeader('sortDate',   pendingHandoffHeader.sortDate);
+}
+
 syncHeader();
 </script>
 </body>

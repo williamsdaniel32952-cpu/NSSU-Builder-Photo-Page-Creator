@@ -104,9 +104,9 @@
     .sign-grid { display:grid; gap:8px; }
     .sign-grid.two { grid-template-columns: repeat(2, minmax(0,1fr)); }
     .sign-grid.three { grid-template-columns: repeat(3, minmax(0,1fr)); }
-    .sign-box { border: 1px solid #000; min-height: 72px; background: #fff; padding: 4px; }
+    .sign-box { border: 1px solid #000; min-height: 86px; background: #fff; padding: 4px; }
     .sign-label { font-size: 11px; font-weight: 700; margin-bottom: 4px; }
-    canvas.signature { width: 100%; height: 48px; border: 1px solid #000; touch-action: none; -ms-touch-action: none; background: #fff; display: block; }
+    canvas.signature { width: 100%; height: 58px; border: 1px solid #000; touch-action: none; -ms-touch-action: none; background: #fff; display: block; }
     .sig-actions { display:flex; justify-content:flex-end; margin-top:4px; }
     .sig-clear { font-size:10px; padding:2px 6px; border:1px solid #000; background:#eee; cursor:pointer; }
     .sig-clear:disabled { opacity:.45; cursor:not-allowed; }
@@ -149,13 +149,12 @@
     .page1-row.compact { grid-template-columns: 1fr; }
     .page1-label { font-size:12px; font-weight:700; line-height:1.25; }
     .page1-note { font-size:11px; line-height:1.3; color:#333; }
-    .page1-yellow { background:#fff7bf; border:1px solid #000; padding:8px; font-size:12px; font-weight:700; line-height:1.35; }
     .page1-top-note { margin-bottom:8px; font-size:12px; font-weight:700; color:#333; }
     .mini-checks { display:grid; gap:6px; }
     .mini-checks .checkbox { min-height: 24px; padding: 2px 6px; font-size: 12px; }
     .freq-checks .checkbox { min-height: 34px; padding: 4px 6px; font-size: 12px; }
     .tools-needed-grid .checkbox { min-height: 32px; font-size: 12px; }
-    .signature-placeholder { min-height:54px; border:1px solid #000; background:linear-gradient(to bottom, #fff 85%, #eee 85%); }
+    .signature-placeholder { min-height:65px; border:1px solid #000; background:linear-gradient(to bottom, #fff 85%, #eee 85%); }
     .signature-placeholder::after { content:'Signature drawing box'; display:block; font-size:10px; color:#666; padding:4px 6px; }
 
     .compact-checks .checkbox { min-height: 30px; font-size: 11px; line-height: 1.1; }
@@ -369,7 +368,6 @@
           <div id="aiSuggestWrap" class="ai-suggest-wrap">
             <button class="btn secondary" id="aiSuggestBtn" type="button" style="display:none;">Request AI Suggestion (Optional)</button>
             <button class="btn secondary" id="saveDraftBtn" type="button">Save as Draft</button>
-            <div class="ai-suggest-note">Available only for Rework when no confirmed rework method exists for the selected defect, tool, and material combination.</div>
           </div>
         </div>
 
@@ -3370,17 +3368,6 @@ NSSU_DATA_END
       dtlBackWrap.append(dtlCard, backCard);
       grid.appendChild(row('DTL / Back and Forth Frequency', dtlBackWrap, true));
 
-      grid.appendChild(row('Page 1 Required Statements', (() => {
-        const wrap = document.createElement('div');
-        wrap.className = 'group';
-        wrap.append(
-          buildPlainText('Email a completed copy of Sort Set Up Sheet to the RI Data/Parts Team Member', 'page1-yellow'),
-          buildPlainText('NOTE: SRP sorter must use Green Ink pen', 'page1-yellow'),
-          buildPlainText('SRP SL and TM trained on defect and sort method', 'page1-yellow')
-        );
-        return wrap;
-      })(), true));
-
       // Stripe page 1 rows with alternating background
       const allRows = grid.querySelectorAll('.row:not(.page2-fullwidth)');
       allRows.forEach((r, i) => {
@@ -4055,6 +4042,29 @@ NSSU_DATA_END
       Object.values(primarySignatureStateKeys).forEach(key => { state[key] = ''; });
     }
 
+    // Clears only the three NSSU Approval signatures along the bottom (right-side row).
+    // Used by the revision flow so the left-side trained-on initials stay intact.
+    function clearApprovalSignatures() {
+      const ids = ['sigRightSRP', 'sigRightTM', 'sigRightGL'];
+      ids.forEach(id => {
+        const canvas = document.getElementById(id);
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          const rect = canvas.getBoundingClientRect();
+          ctx.clearRect(0, 0, rect.width, rect.height);
+        }
+        const stateKey = primarySignatureStateKeys[id];
+        if (stateKey) state[stateKey] = '';
+        if (signatureStates && Object.prototype.hasOwnProperty.call(signatureStates, id)) {
+          signatureStates[id] = false;
+        }
+      });
+      // Reaffirm left-side flags from saved state so validation won't fail
+      // before the async canvas repaint flips them back to true.
+      if (state.sigPage1SrpLeftData) signatureStates.sigLeftSRP = true;
+      if (state.sigPage1RiTmLeftData) signatureStates.sigLeftRI = true;
+    }
+
     function resetToBlankNssu() {
       Object.keys(state).forEach(key => {
         const value = state[key];
@@ -4284,6 +4294,43 @@ NSSU_DATA_END
     };
 
     document.getElementById('toPhotoCreatorBtn').onclick = () => {
+      // Snapshot relevant NSSU fields so the photo creator can autofill
+      // its top-section inputs and slot captions on load.
+      try {
+        const stripStepPrefix = (s) => (s || '').replace(/^\s*\d+\s*[.)]\s*/, '').trim();
+        const firstSentence = (s) => {
+          const cleaned = stripStepPrefix(s);
+          if (!cleaned) return '';
+          const m = cleaned.match(/^[^.!?]*[.!?]/);
+          return (m ? m[0] : cleaned).trim();
+        };
+        const liveText = (id) => {
+          const el = document.getElementById(id);
+          return el ? (el.textContent || '').trim() : '';
+        };
+        const firstKanban = (state.kanbanEntries && state.kanbanEntries[0]) || {};
+        const handoff = {
+          ts: Date.now(),
+          header: {
+            trackingNumber: state.trackingNumber || '',
+            kanban: firstKanban.kanban || '',
+            defect: state.defectOther || state.commonDefect || '',
+            partName: state.partName || '',
+            sortLocation: state.sortLocation || '',
+            supplier: state.supplier || '',
+            partNumber: firstKanban.partNumber || '',
+            sortDate: state.sortDate || ''
+          },
+          captions: {
+            good: firstSentence(liveText('step3Box')),
+            ng: firstSentence(liveText('step4Box')),
+            rework: stripStepPrefix(liveText('rework1Box'))
+          }
+        };
+        localStorage.setItem('nssuPhotoHandoff', JSON.stringify(handoff));
+      } catch (err) {
+        // Non-fatal; photo creator just won't autofill.
+      }
       navigateWithTransition('./nssu_photo_creator_with_rework_templates.html');
     };
 
@@ -4375,7 +4422,7 @@ NSSU_DATA_END
       state.riSignedLock = false;
       state.aiAttemptsUsed = 0;
       state.currentRecordStatus = 'draft';
-      clearAllSignatures(true);
+      clearApprovalSignatures();
       render();
       applySignatureLockState();
       renderRevisionList();
